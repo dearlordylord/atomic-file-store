@@ -10,11 +10,9 @@ explicitly don't support multiple processes writing the same file;
 [`proper-lockfile`](https://www.npmjs.com/package/proper-lockfile) serializes with lockfiles.
 This package takes the database approach instead: **optimistic concurrency**.
 
-> **Status:** initial implementation. The core RMW engine is in place; the
-> Effect facade is complete. See [`RESEARCH.md`](./RESEARCH.md) for the
-> ecosystem analysis and discoverability plan, and
-> [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
-> for the original design rationale.
+See [`RESEARCH.md`](./RESEARCH.md) for the ecosystem analysis and discoverability
+plan, and [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
+for the original design rationale.
 
 ## When to use / when not
 
