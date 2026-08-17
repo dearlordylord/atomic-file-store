@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./effect": {
+      "types": "./dist/effect.d.ts",
+      "import": "./dist/effect.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -58,6 +62,11 @@
   "packageManager": "pnpm@10.29.3",
   "peerDependencies": {
     "effect": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "effect": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
