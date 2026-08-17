@@ -36,7 +36,7 @@ if it hasn't changed since you read it. Conflicts are reported, not merged.
 import { modify } from "atomic-file-store"
 
 const outcome = await modify(
-  "~/.my-cli/session.json",
+  "/home/me/.my-cli/session.json", // absolute path
   (contents) => updateToken(contents)
 )
 
@@ -153,9 +153,9 @@ pnpm add effect
 ## Background
 
 See [`RESEARCH.md`](./RESEARCH.md) for the ecosystem analysis and
- discoverability plan, and
- [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
- for the original design rationale.
+discoverability plan, and
+[`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
+for the original design rationale.
 
 ## License
 
