@@ -152,9 +152,7 @@ pnpm add effect
 
 ## Background
 
-See [`RESEARCH.md`](./RESEARCH.md) for the ecosystem analysis and
-discoverability plan, and
-[`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
+See [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
 for the original design rationale.
 
 ## License
