@@ -150,11 +150,6 @@ pnpm add effect
 | [`lowdb`](https://www.npmjs.com/package/lowdb) / [`steno`](https://www.npmjs.com/package/steno) | Queued atomic JSON writer | No cross-process CAS; no conflict outcome |
 | [`proper-lockfile`](https://www.npmjs.com/package/proper-lockfile) | Cross-process serialization | Lockfile stale-lock failure modes; this uses optimistic concurrency |
 
-## Background
-
-See [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
-for the original design rationale.
-
 ## License
 
 MIT © firfi
