@@ -1,0 +1,69 @@
+{
+  "name": "atomic-file-store",
+  "version": "0.1.0",
+  "description": "Atomic read-modify-write for local JSON files. Compare-and-swap optimistic concurrency across processes — no lockfiles, no merges.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "pnpm build"
+  },
+  "keywords": [
+    "atomic",
+    "read-modify-write",
+    "compare-and-swap",
+    "optimistic-concurrency",
+    "concurrent",
+    "multi-process",
+    "cross-process",
+    "race-condition",
+    "json",
+    "json-file",
+    "file",
+    "store",
+    "config",
+    "session",
+    "atomic-write",
+    "effect",
+    "typescript"
+  ],
+  "author": "firfi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/dearlordylord/atomic-file-store.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dearlordylord/atomic-file-store/issues"
+  },
+  "homepage": "https://github.com/dearlordylord/atomic-file-store#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "peerDependencies": {
+    "effect": ">=3.0.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "latest",
+    "@types/node": "^25.1.0",
+    "effect": "^3.22.1",
+    "typescript": "^5.9.3",
+    "vitest": "latest"
+  }
+}
