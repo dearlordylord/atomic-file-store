@@ -60,10 +60,10 @@
     "effect": ">=3.0.0"
   },
   "devDependencies": {
-    "@effect/vitest": "latest",
+    "@effect/vitest": "^0.30.0",
     "@types/node": "^25.1.0",
     "effect": "^3.22.1",
     "typescript": "^5.9.3",
-    "vitest": "latest"
+    "vitest": "^3.2.0"
   }
 }
