@@ -1,34 +1,39 @@
 # atomic-file-store
 
+[![npm version](https://img.shields.io/npm/v/atomic-file-store)](https://www.npmjs.com/package/atomic-file-store)
+[![license](https://img.shields.io/npm/l/atomic-file-store)](./LICENSE)
+
 > Atomic read-modify-write for local JSON files. Compare-and-swap optimistic
 > concurrency across processes — no lockfiles, no merges.
 
 Your CLI writes a session file. Your MCP server refreshes it. Your keepalive
-daemon touches it too. Plain `read` + `write` loses updates. [`conf`](https://www.npmjs.com/package/conf),
-[`lowdb`](https://www.npmjs.com/package/lowdb) and [`electron-store`](https://www.npmjs.com/package/electron-store)
-explicitly don't support multiple processes writing the same file;
-[`proper-lockfile`](https://www.npmjs.com/package/proper-lockfile) serializes with lockfiles.
-This package takes the database approach instead: **optimistic concurrency**.
+daemon touches it too. With plain `read` + `write`, the last writer silently
+wins and everyone else's updates disappear.
 
-See [`RESEARCH.md`](./RESEARCH.md) for the ecosystem analysis and discoverability
-plan, and [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
-for the original design rationale.
+`atomic-file-store` fixes that with the same pattern databases use:
+**optimistic concurrency**. Read the file, transform it, and write it back only
+if it hasn't changed since you read it. Conflicts are reported, not merged.
 
-## When to use / when not
+## Features
 
-Use this for small local state files shared by a few local processes — a CLI,
-an MCP server, and a background keepalive, all writing the same credentials or
-session JSON.
+- **Closure-owned RMW** — one `modify(path, transform)` call owns the entire
+  read → transform → compare-and-swap → write cycle.
+- **Byte-level CAS** — compares raw file bytes, so non-canonical JSON
+  serialization can't create phantom conflicts.
+- **Atomic durable writes** — temp file + `fsync` + rename; crashes never leave
+  a torn file.
+- **Per-path in-process serialization** — same-process fibers can't race each
+  other by construction.
+- **Drop or retry** — default policy drops the in-flight update on conflict;
+  opt-in bounded retry for writes that carry unique intent.
+- **Effect-native subpath** — `atomic-file-store/effect` gives typed errors,
+  `Schedule` retries, `TestClock` tests, and interruption safety.
+- **Zero runtime dependencies** for the Promise API (Node built-ins only).
 
-Do **not** use it for cross-machine state, large files, or scenarios where you
-want merge semantics. Conflicts are reported, not resolved.
-
-## Plain TypeScript / Promise API
-
-The default entry point is zero-dependency (Node built-ins only):
+## Quick start
 
 ```ts
-import { modify, read } from "atomic-file-store"
+import { modify } from "atomic-file-store"
 
 const outcome = await modify(
   "~/.my-cli/session.json",
@@ -38,16 +43,7 @@ const outcome = await modify(
 // outcome: "saved" | "dropped-conflict"
 ```
 
-`modify` owns the whole cycle:
-
-1. Fresh read of the file bytes.
-2. Run your transform on the contents.
-3. Compare the file bytes against the CAS token captured at read time.
-4. Write to a temp file, `fsync`, then `rename` — but only if the file is unchanged.
-5. On conflict, either drop the update (`"dropped-conflict"`) or re-read and retry
-   with the supplied policy.
-
-Retry for unique-intent writes:
+Retry until convergence:
 
 ```ts
 import { modify, ConflictExhausted } from "atomic-file-store"
@@ -63,50 +59,39 @@ try {
 }
 ```
 
-## Effect API (`atomic-file-store/effect`)
+## Effect API
 
-If you use [Effect](https://effect.website/), import the same engine through
-its Effect facade:
+If you use [Effect](https://effect.website/):
 
 ```ts
 import { Effect, Schedule } from "effect"
 import { modify } from "atomic-file-store/effect"
 
 const program = modify(
-  "~/.my-cli/session.json",
-  (contents) => updateToken(contents),
+  "session.json",
+  transform,
   { retry: Schedule.recurs(3).pipe(Schedule.addDelay(() => "10 millis")) }
 )
 
 const outcome = await Effect.runPromise(program)
-// outcome: "saved" | "dropped-conflict"
 // failure channel: FileSystemError | ConflictExhausted
 ```
 
-### Caveat: the Effect subpath brings the `effect` dependency
+> **Note:** `atomic-file-store/effect` is a thin wrapper over the same
+> zero-dependency core, but it imports `effect`. If you don't already depend on
+> Effect, your package manager will install it for this subpath.
+>
+> You get typed errors, composable `Schedule` retries, fast `TestClock` tests,
+> and interruption-aware cleanup — all without duplicating the implementation.
 
-`atomic-file-store/effect` is a thin wrapper over the same zero-dependency core,
-but it imports `effect` so that it can expose typed `Effect.Effect<…>` return
-values and accept `Schedule` for retry. If you don't already depend on Effect,
-your package manager will install it (and its small set of runtime deps) when
-you import this subpath.
+## When to use / when not
 
-### What you get for that dependency
+Use this for small local state files shared by a few local processes: a CLI,
+an MCP server, a background keepalive, or multiple instances of the same app
+all writing the same credentials or session JSON.
 
-- **Typed errors in the type signature.** `FileSystemError` and
-  `ConflictExhausted` live in `Effect.Effect<…, …>` instead of being thrown
-  through a `Promise` catch block.
-- **Composable retry schedules.** Pass any `Schedule` — exponential back-off,
-  jitter, recurs + delay, etc. — instead of the fixed `attempts`/`delayMs`
-  object the Promise API accepts.
-- **Deterministic, fast tests.** Drive multi-process interleavings and retry
-  delays with Effect `TestClock`; seconds of real time collapse to milliseconds.
-- **Interruption safety.** Effect's cancellation and `acquireUseRelease`
-  machinery can clean up temp files or locks if a fiber is cancelled mid-write.
-  (The Promise API has no cancellation model.)
-- **Same implementation.** Both APIs run through the identical byte-level CAS
-  check, temp-file + fsync + rename write path, and per-path in-process
-  serialization. The facade is ~40 lines; the behavior is not duplicated.
+Do **not** use it for cross-machine state, large files, or merge semantics.
+Conflicts are reported, not resolved.
 
 ## Installation
 
@@ -114,8 +99,7 @@ you import this subpath.
 pnpm add atomic-file-store
 ```
 
-Effect users also need `effect` installed (peer dependency, marked optional so
-plain-TS consumers don't pay for it):
+Effect users also need `effect` installed (optional peer dependency):
 
 ```bash
 pnpm add effect
@@ -125,10 +109,17 @@ pnpm add effect
 
 | Package | What it gives you | Why it's not this |
 |---|---|---|
-| [`atomically`](https://www.npmjs.com/package/atomically) / [`write-file-atomic`](https://www.npmjs.com/package/write-file-atomic) | Durable atomic writes (tmp + rename + fsync) | Write-only primitives; no read-modify-write, no CAS, no conflict detection |
-| [`conf`](https://www.npmjs.com/package/conf) / [`electron-store`](https://www.npmjs.com/package/electron-store) | Small JSON config store | README: "It does not support multiple processes writing to the same store" |
+| [`atomically`](https://www.npmjs.com/package/atomically) / [`write-file-atomic`](https://www.npmjs.com/package/write-file-atomic) | Durable atomic writes | Write-only primitives; no RMW, no CAS, no conflict detection |
+| [`conf`](https://www.npmjs.com/package/conf) / [`electron-store`](https://www.npmjs.com/package/electron-store) | Small JSON config store | Explicitly does not support multiple processes writing the same file |
 | [`lowdb`](https://www.npmjs.com/package/lowdb) / [`steno`](https://www.npmjs.com/package/steno) | Queued atomic JSON writer | No cross-process CAS; no conflict outcome |
-| [`proper-lockfile`](https://www.npmjs.com/package/proper-lockfile) | Cross-process serialization | Lockfile stale-lock failure modes; this package uses optimistic concurrency instead |
+| [`proper-lockfile`](https://www.npmjs.com/package/proper-lockfile) | Cross-process serialization | Lockfile stale-lock failure modes; this uses optimistic concurrency |
+
+## Background
+
+See [`RESEARCH.md`](./RESEARCH.md) for the ecosystem analysis and
+ discoverability plan, and
+ [`dearlordylord/voila-sdk#4`](https://github.com/dearlordylord/voila-sdk/issues/4)
+ for the original design rationale.
 
 ## License
 
