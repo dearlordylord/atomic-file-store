@@ -1,6 +1,6 @@
 {
   "name": "atomic-file-store",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Atomic read-modify-write for local JSON files. Compare-and-swap optimistic concurrency across processes — no lockfiles, no merges.",
   "type": "module",
   "main": "./dist/index.js",

@@ -64,25 +64,61 @@ try {
 If you use [Effect](https://effect.website/):
 
 ```ts
-import { Effect, Schedule } from "effect"
-import { modify } from "atomic-file-store/effect"
+import { Effect, Schedule, Schema } from "effect"
+import {
+  modify,
+  modifySchema,
+  persist,
+  retryPolicy,
+  StateFilePathSchema,
+  StateFileLocksLive
+} from "atomic-file-store/effect"
 
-const program = modify(
-  "session.json",
-  transform,
-  { retry: Schedule.recurs(3).pipe(Schedule.addDelay(() => "10 millis")) }
+const Session = Schema.Struct({ userId: Schema.String, rotations: Schema.Number })
+
+const program = modifySchema(
+  StateFilePathSchema.make("/home/me/.my-app/session.json"),
+  Session,
+  (session) =>
+    Effect.succeed(
+      persist({
+        userId: session?.userId ?? "anonymous",
+        rotations: (session?.rotations ?? 0) + 1
+      })
+    ),
+  retryPolicy(Schedule.recurs(3).pipe(Schedule.addDelay(() => "10 millis")))
 )
 
-const outcome = await Effect.runPromise(program)
-// failure channel: FileSystemError | ConflictExhausted
+const outcome = await Effect.runPromise(Effect.provide(program, StateFileLocksLive))
+// outcome: { _tag: "saved", value: Session }
+//          | { _tag: "unchanged" }
+//          | { _tag: "dropped-conflict", value: Session | undefined }
 ```
 
-> **Note:** `atomic-file-store/effect` is a thin wrapper over the same
-> zero-dependency core, but it imports `effect`. If you don't already depend on
-> Effect, your package manager will install it for this subpath.
->
-> You get typed errors, composable `Schedule` retries, fast `TestClock` tests,
-> and interruption-aware cleanup — all without duplicating the implementation.
+The Effect subpath does something the Promise API cannot: your transform is an
+`Effect`, so it can perform arbitrary I/O *inside* the conflict-checked
+read → transform → write window. Fetch a token, look up a config value, or call
+another service while the in-process lock and CAS guard still hold. This is the
+difference between this library and atomic-write primitives like `atomically`:
+the whole read-modify-write cycle is owned, not just the final rename.
+
+Conflict policy:
+
+- `dropPolicy` (default) discards the in-flight update on conflict. Use it when
+  updates are regenerable or lineage-bound (a keepalive rotation, a refresh).
+- `retryPolicy(schedule)` re-reads the fresh file and re-runs the transform,
+  bounded by the `Schedule`. Exhaustion surfaces as `ConflictExhausted`.
+- There is no merge option: snapshots are only internally consistent within one
+  lineage, and merging across lineages builds heisenbugs.
+
+Errors are typed and secret-free. Messages name the path, never the file
+contents, because state files can hold credentials and tokens.
+
+> **Note:** `atomic-file-store/effect` brings in `effect` as an optional peer
+> dependency. You only need it for this subpath; the Promise API remains
+> dependency-free. What you get is typed errors, composable `Schedule` retries,
+> fast `TestClock` tests, interruption-aware cleanup, and the ability to run
+> arbitrary `Effect` work inside the guarded cycle.
 
 ## When to use / when not
 
